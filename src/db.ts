@@ -312,10 +312,13 @@ export async function makeMove(move: LocalMove): Promise<boolean> {
         san: moved.san,
         from: moved.from,
         to: moved.to,
-        promotion: moved.promotion ?? undefined,
         fen: chess.fen(),
         time: Date.now(),
       };
+      // Firebase RTDB 不允许 undefined 值：只有升变时才写入 promotion 字段
+      if (typeof moved.promotion === "string") {
+        record.promotion = moved.promotion;
+      }
 
       expectedFen = chess.fen();
       return {
