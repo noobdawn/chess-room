@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.uielements/
+*.local
+.DS_Store
