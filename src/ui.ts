@@ -152,7 +152,7 @@ function renderMoveList(history: MoveRecord[]): void {
   if (!moveListEl) return;
   moveListEl.textContent = "";
 
-  const recent = history.slice(-20);
+  const recent = (history ?? []).slice(-20);
   const pairCount = Math.ceil(recent.length / 2);
 
   for (let i = 0; i < pairCount; i++) {

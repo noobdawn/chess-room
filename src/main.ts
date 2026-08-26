@@ -151,7 +151,7 @@ function renderAll(): void {
     }
   }
 
-  const history = room.game.history;
+  const history = room.game.history ?? [];
   const last = history.length > 0 ? history[history.length - 1] : null;
 
   renderBoard({

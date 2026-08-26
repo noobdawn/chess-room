@@ -47,6 +47,43 @@ export interface RoomState {
   game: RoomGame;
 }
 
+// ---------------------------------------------------------------------------
+// 数据归一化：Firebase RTDB 不保存空数组 / null 值，写入的
+// `history: []`、`result: null` 会被数据库删除，读回来时字段缺失。
+// 所有从数据库读出的数据都必须先经过这里补齐默认值，否则 UI 会崩。
+// ---------------------------------------------------------------------------
+
+function normalizeGame(game: Partial<RoomGame> | null | undefined): RoomGame {
+  return {
+    fen: typeof game?.fen === "string" && game.fen !== "" ? game.fen : initialFen(),
+    history: Array.isArray(game?.history) ? game.history : [],
+    result: typeof game?.result === "string" ? game.result : null,
+  };
+}
+
+function seatOf(value: unknown): PlayerSeat | null {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    typeof (value as PlayerSeat).id === "string"
+  ) {
+    return { id: (value as PlayerSeat).id };
+  }
+  return null;
+}
+
+function normalizePlayers(players: RoomPlayers | null | undefined): RoomPlayers {
+  return { white: seatOf(players?.white), black: seatOf(players?.black) };
+}
+
+/** 把可能残缺的数据库原始数据，整理成应用需要的完整 RoomState */
+export function normalizeRoom(raw: RoomState | null | undefined): RoomState {
+  return {
+    players: normalizePlayers(raw?.players),
+    game: normalizeGame(raw?.game),
+  };
+}
+
 export interface LocalMove {
   from: string;
   to: string;
@@ -129,36 +166,38 @@ export async function joinRoom(): Promise<JoinResult> {
   const id = playerId;
 
   const result = await runTransaction(ref(getDb(), roomPath), (room) => {
-    const base = room ?? {
+    const base: RoomState | null =
+      room && typeof room === "object" ? normalizeRoom(room as RoomState) : null;
+    const baseRoom: RoomState = base ?? {
       players: { white: null, black: null },
       game: { fen: initialFen(), history: [], result: null },
     };
 
     const players: RoomPlayers = {
-      white: base.players?.white ?? null,
-      black: base.players?.black ?? null,
+      white: baseRoom.players.white,
+      black: baseRoom.players.black,
     };
 
     if (players.white?.id === id || players.black?.id === id) {
-      return base; // 已有座位，保持不变
+      return baseRoom; // 已有座位，保持不变
     }
     if (!players.white) {
       players.white = { id };
     } else if (!players.black) {
       players.black = { id };
     } else {
-      return base; // 满员，观战
+      return baseRoom; // 满员，观战
     }
 
     return {
       players,
-      game: base.game ?? { fen: initialFen(), history: [], result: null },
+      game: baseRoom.game,
     };
   });
 
   let seat: Seat | "spectator" = "spectator";
   if (result.committed && result.snapshot.exists()) {
-    const room = result.snapshot.val() as RoomState;
+    const room = normalizeRoom(result.snapshot.val() as RoomState | null);
     lastRoom = room;
     if (room.players?.white?.id === id) seat = "white";
     else if (room.players?.black?.id === id) seat = "black";
@@ -199,11 +238,8 @@ export function listenRoom(cb: (room: RoomState) => void): () => void {
   return onValue(
     ref(getDb(), roomPath),
     (snap) => {
-      const room = snap.val() as RoomState | null;
-      lastRoom = room ?? {
-        players: { white: null, black: null },
-        game: { fen: initialFen(), history: [], result: null },
-      };
+      const room = normalizeRoom(snap.val() as RoomState | null);
+      lastRoom = room;
       cb(lastRoom);
     },
     (err) => {
