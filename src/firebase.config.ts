@@ -1,4 +1,4 @@
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyANguRxDACoS3FPnDByijCwD8MvgKP_P-E",
   authDomain: "family-chess-5122c.firebaseapp.com",
   databaseURL: "https://family-chess-5122c-default-rtdb.asia-southeast1.firebasedatabase.app",

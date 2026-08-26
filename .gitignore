@@ -6,3 +6,6 @@ dist/
 
 # 本地部署说明，不随仓库公开
 部署说明.md
+
+# opencode 本地工作目录
+.opencode/
