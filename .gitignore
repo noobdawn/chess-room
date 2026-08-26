@@ -3,3 +3,6 @@ dist/
 .uielements/
 *.local
 .DS_Store
+
+# 本地部署说明，不随仓库公开
+部署说明.md
